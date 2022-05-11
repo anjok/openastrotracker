@@ -64,6 +64,7 @@ if __name__ == "__main__":
     # offsets = [-38.4, -23.2, 23.5, 19.0]
     offsets = [-38.4, -23.2, 23.5, 19.0]
     offsets = [-37.8, -24.2, 23.0, 19.0]
+    offsets = [-38.2, -24.2, 23.0, 19.0]
     #offsets = [0, 0, 0, 0.0]
 
     sensor = Sensor(offsets=offsets)

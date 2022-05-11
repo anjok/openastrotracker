@@ -5,6 +5,13 @@ from openastroclient import OpenAstroClient
 
 #mpu9250
 offsets = [-37.8, -24.2, 23.0, 19.0]
+offsets = [-38.2, -24.2, 23.0, 19.0]
+##mpu6050
+#offsets = [-7.1, -22.5, 2.0, 2.0]
+
+targets = [-1.9,47.1]
+
+epsilon = 0.5
 
 sensor = Sensor(offsets=offsets)
 
@@ -13,13 +20,33 @@ class Axis:
         self.target = target
         self.steps = steps
         self.meade = meade
+        self.speed = -1
     @property
     def is_close(self, pos):
-        return self.target - pos < 2
+        return math.fabs(self.target - pos) < epsilon
+    @property
+    def is_ra(self):
+        return self.meade == 'r'
+    @property
+    def current_position(self):
+        (a,b) = client.sendCommandAndWait(":GX#")
+        array = b.split(",")[2:4]
+        index = 0 if self.is_ra else 1
+        return array[index]
         
     def do_home(self, pos):
-        sgn = -1 if self.meade == 'r' else 1
+        sgn = -1 if self.is_ra else 1
         steps = int(self.steps * sgn * (self.target - pos))
+        if(math.fabs(steps) < 500):
+            speed = 0
+        elif(math.fabs(steps) < 1000):
+            speed = 1
+        else:
+            speed = 2
+        if self.speed != speed:
+            self.speed = speed
+            speed_char = "GCMS"[self.speed]
+            client.sendCommandAndWait(f":R{speed_char}#")
         cmd = f":MX{self.meade}{steps}#"
         return cmd
     
@@ -27,25 +54,37 @@ class Axis:
         done = False
         while not done:
              x,y = sensor.angles
-             pos = x if self.meade == 'r' else y
-             diff = math.fabs(pos-self.target)
-             done = diff < .5
+             pos = x if self.is_ra else y
+             diff = self.target - pos
+             done = math.fabs(diff) < epsilon
              if not done:
                 cmd = self.do_home(pos)
-                print(f"\r{self.meade} pos:{pos:5.2f} delta:{diff:5.2f}", end="")
+                print(f"\nTarget:{self.target:5.2f} pos:{pos:5.2f} delta:{diff:5.2f}")
                 client.sendCommand(cmd)
+                current_position = self.current_position
+                new_position = self.current_position
+                while new_position != current_position:
+                    print(f"Waiting until target is reached, current: {current_position}, new: {new_position}")
+                    current_position = new_position
+                    new_position = self.current_position
+                    time.sleep(1)
+                #print(cmd)
+                #time.sleep(10)
+
+ra = Axis(targets[0], 314.2, "r")
+dec = Axis(targets[1], 314.2, "d")
 
 if __name__ == '__main__':
     client = OpenAstroClient(hostname="localhost")
-    client.sendCommand(":Q#")
-    ra = Axis(11.2, 314.2, "r")
-    dec = Axis(52.7, 314.2, "d")
+    client.sendCommandAndWait(":Q#")
+    #client.sendCommand(":XR#")
+    client.sendCommandAndWait(":RM#")
     x,y = sensor.angles
     print(f"\rX: {x:5.2f} Y: {y:5.2f} dX:{x-ra.target:5.2f} dY:{y-dec.target:5.2f}", end="")
     for i in range(0,2):
         ra.home()
         dec.home()
-    client.sendCommand(":Q#")
+    client.sendCommandAndWait(":Q#")
     x,y = sensor.angles
     print(f"\rX: {x:5.2f} Y: {y:5.2f} dX:{x-ra.target:5.2f} dY:{y-dec.target:5.2f}", end="")
     time.sleep(1)

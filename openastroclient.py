@@ -26,10 +26,19 @@ class OpenAstroClient(PyIndi.BaseClient):
     def sendCommand(self,cmd):
         self.meadeResultRead = False
         self.meadeProp[0].text = cmd
+        print(f">> Sending: {cmd}")
+        self.sendNewText(self.meadeProp)
+        time.sleep(1.0)
+        return ("ok", "ok")
+    def sendCommandAndWait(self,cmd):
+        self.meadeResultRead = False
+        self.meadeProp[0].text = cmd
+        print(f">> Sending: {cmd}")
         self.sendNewText(self.meadeProp)
         while not(self.meadeResultRead):
-            log(f"Waiting for result: {cmd}")
+            print(f"\r<<Waiting for result: {cmd}", end="")
             time.sleep(1)
+        print(f"<< Received: {self.meadeResult.s} {self.meadeResult.tp.text}")
         return self.meadeResult.s,self.meadeResult.tp.text
     def newDevice(self, d):
         pass
@@ -61,6 +70,7 @@ class OpenAstroClient(PyIndi.BaseClient):
 if __name__ == '__main__':
     c=OpenAstroClient()
     while True:
+        print("Command: ", end="")
         string = input()
-        c.sendCommand(f":{string}#")
+        c.sendCommandAndWait(f":{string}#")
 
