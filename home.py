@@ -9,7 +9,11 @@ offsets = [-38.2, -24.2, 23.0, 19.0]
 ##mpu6050
 #offsets = [-7.1, -22.5, 2.0, 2.0]
 
-targets = [-1.9,47.1]
+# table
+targets = [-1.9, 47.1]
+# front
+targets = [ -2.65, 45.72]
+# back
 
 epsilon = 0.5
 
@@ -38,11 +42,11 @@ class Axis:
         sgn = -1 if self.is_ra else 1
         steps = int(self.steps * sgn * (self.target - pos))
         if(math.fabs(steps) < 500):
-            speed = 0
-        elif(math.fabs(steps) < 1000):
             speed = 1
-        else:
+        elif(math.fabs(steps) < 1000):
             speed = 2
+        else:
+            speed = 3
         if self.speed != speed:
             self.speed = speed
             speed_char = "GCMS"[self.speed]
@@ -64,7 +68,7 @@ class Axis:
                 current_position = self.current_position
                 new_position = self.current_position
                 while new_position != current_position:
-                    print(f"Waiting until target is reached, current: {current_position}, new: {new_position}")
+                    print(f"\rWaiting until target is reached, current: {current_position}, new: {new_position}", end="")
                     current_position = new_position
                     new_position = self.current_position
                     time.sleep(1)
@@ -76,15 +80,14 @@ dec = Axis(targets[1], 314.2, "d")
 
 if __name__ == '__main__':
     client = OpenAstroClient(hostname="localhost")
-    client.sendCommandAndWait(":Q#")
-    #client.sendCommand(":XR#")
-    client.sendCommandAndWait(":RM#")
+    client.debug = True
     x,y = sensor.angles
     print(f"\rX: {x:5.2f} Y: {y:5.2f} dX:{x-ra.target:5.2f} dY:{y-dec.target:5.2f}", end="")
     for i in range(0,2):
         ra.home()
         dec.home()
     client.sendCommandAndWait(":Q#")
+    client.sendCommandAndWait(":SHP#")
     x,y = sensor.angles
     print(f"\rX: {x:5.2f} Y: {y:5.2f} dX:{x-ra.target:5.2f} dY:{y-dec.target:5.2f}", end="")
     time.sleep(1)

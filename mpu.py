@@ -66,7 +66,9 @@ if __name__ == "__main__":
     offsets = [-37.8, -24.2, 23.0, 19.0]
     offsets = [-38.2, -24.2, 23.0, 19.0]
     #offsets = [0, 0, 0, 0.0]
-
+    targets = [-1.9, 47.1]
+    # back
+    # Pos(X: -2.65 Y:45.72) Targets:(X-0.75 Y-1.38) Accel(X:72.43  Y:-4.68, Z:70.29) Temp(16.02) C
     sensor = Sensor(offsets=offsets)
     #sensor.raw_acceleration
     #(x,y,z) = sensor.acceleration
@@ -82,7 +84,7 @@ if __name__ == "__main__":
         try:
             (x,y,z) = sensor.acceleration
             (X,Y) = sensor.angles
-            print(f"""\rPos(X: {X:5.2f} Y:{Y:5.2f}) Accel(X:{x:5.2f}  Y:{y:5.2f}, Z:{z:5.2f}) Temp({sensor.temperature:.2f}) C""", end="")
+            print(f"""\rPos(X: {X:5.2f} Y:{Y:5.2f}) Targets:(X{X-targets[0]:5.2f} Y{Y-targets[1]:5.2f}) Accel(X:{x:5.2f}  Y:{y:5.2f}, Z:{z:5.2f}) Temp({sensor.temperature:.2f}) C""", end="")
             time.sleep(1)
         except KeyboardInterrupt:
             print()
