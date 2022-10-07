@@ -3,6 +3,8 @@ import time, threading, io, sys
 import PyIndi
 import readline
 
+from macpath import split
+
 cmdName = "Meade"
 
 class OpenAstroClient(PyIndi.BaseClient):
@@ -12,7 +14,7 @@ class OpenAstroClient(PyIndi.BaseClient):
         self.blobEvent=threading.Event()
         self.debug = False
         if (not(self.connectServer())):
-            raise f"No indiserver running on {hostname}:{port} - Run server in Ekos first."
+            raise Exception(f"No indiserver running on {hostname}:{port} - Run server in Ekos first.")
         telescopeName = "LX200 OpenAstroTech"
         self.telescope=self.getDevice(telescopeName)
         while not(self.telescope):
@@ -109,8 +111,47 @@ class OpenAstroClient(PyIndi.BaseClient):
             self.toggleSwitch(telescope_connect, 1)
         time.sleep(1)
 
+class Settings: 
+    def __init__(self):
+        self.dec_lower = None
+        self.dec_upper = None
+        self.ra_steps = None
+        self.dec_steps = None
+        self.dec_park = None
+        self.ra_offset = None
+        pass
+    def save(self):
+        pass
+    def load(self):
+        pass
+    def read(self):
+        if(self.dec_lower):
+            return
+        res = sendCommandAndWait(f"XGDLL")[1]
+        res = res.split("|")
+        self.dec_lower = int(res[0])
+        self.dec_upper = int(res[1])
+        self.ra_steps = float(sendCommandAndWait(f"XGR")[1])
+        self.dec_steps = float(sendCommandAndWait(f"XGD")[1])
+        self.dec_park = int(sendCommandAndWait(f"XGDP")[1])
+        self.ra_offset = int(sendCommandAndWait(f"XGHR")[1])
+    def write(self):
+        pass
+    def print(self):
+        print(f"""DEC Limits:
+    Lower: {self.dec_lower}
+    Upper: {self.dec_upper}
+Steps:
+    RA: {self.ra_steps}
+    DEC: {self.dec_steps}
+Offsets:
+    DEC: {self.dec_park}
+    RA: {self.ra_offset}""")
+
+
 if __name__ == '__main__':
-    c=OpenAstroClient()
+    c = OpenAstroClient()
+    s = Settings()
     def sendCommandAndWait(cmd):
         res = c.sendCommandAndWait(f":{cmd}#")
         print(f"# {cmd} -> {res}")
@@ -118,24 +159,40 @@ if __name__ == '__main__':
     def status():
         res = sendCommandAndWait(f"GX")[1].split(",")[0]
         return res
+    def print_settings():
+        print("# settings")
+        s.read()
+        s.print()
     def home():
+        # stop motors
+        sendCommandAndWait(f"Q")
+        # get status for first display
+        sendCommandAndWait(f"GX")
+        # set speed
         sendCommandAndWait(f"GCMS3")
-        sendCommandAndWait(f"MHRR2")
+        # find RA home offset (just to be safe)
+        sendCommandAndWait(f"XSHR-400")
+        # find RA home in 2 hours range
+        sendCommandAndWait(f"MHRR3")
         while True:
             res = status()
             print(res)
             if res == 'Tracking':
                 break
-        sendCommandAndWait(f"MXd13000")
+        # move to 90 deg
+        sendCommandAndWait(f"MXd12900")
         while True:
             res = status()
             print(res)
             if res == 'Tracking':
                 break
+        # set home pos
         sendCommandAndWait(f"SHP")
+        # stop motors
         sendCommandAndWait(f"Q")
         sendCommandAndWait(f"GX")
         print("# homing done")
+    sendCommandAndWait(f"Q")
     while True:
         print(">> Command: ", end="")
         string = input()
@@ -145,6 +202,8 @@ if __name__ == '__main__':
                 time.sleep(int(command[1]))
             if command[0]  == '#home':
                 home()
+            if command[0]  == '#prefs':
+                print_settings()
         else:
             result = c.sendCommandAndWait(f":{string}#")
             print(f">> Result: {result}")
