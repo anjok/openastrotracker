@@ -3,7 +3,7 @@ import time, threading, io, sys
 import PyIndi
 import readline
 
-from macpath import split
+from os.path import split
 
 cmdName = "Meade"
 
@@ -170,8 +170,9 @@ if __name__ == '__main__':
         sendCommandAndWait(f"GX")
         # set speed
         sendCommandAndWait(f"GCMS3")
+        # NOTE: re-check when the sensor was bent
         # find RA home offset (just to be safe)
-        sendCommandAndWait(f"XSHR-400")
+        sendCommandAndWait(f"XSHR-700")
         # find RA home in 2 hours range
         sendCommandAndWait(f"MHRR3")
         while True:
