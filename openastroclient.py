@@ -2,13 +2,15 @@
 import time, threading, io, sys
 import PyIndi
 import readline
+import autopa
+import calibrate
 
 from os.path import split
 
 cmdName = "Meade"
 
 class OpenAstroClient(PyIndi.BaseClient):
-    def __init__(self, hostname="localhost", port=7624):
+    def __init__(self, hostname="astroberry.local", port=7624):
         super(OpenAstroClient, self).__init__()
         self.setServer(hostname,int(port))
         self.blobEvent=threading.Event()
@@ -147,11 +149,12 @@ Steps:
 Offsets:
     DEC: {self.dec_park}
     RA: {self.ra_offset}""")
-
-
+        
 if __name__ == '__main__':
     c = OpenAstroClient()
     s = Settings()
+    pa = autopa.AutoPA(c)
+    cal = calibrate.Calibrate(c)
     def sendCommandAndWait(cmd):
         res = c.sendCommandAndWait(f":{cmd}#")
         print(f"# {cmd} -> {res}")
@@ -168,18 +171,23 @@ if __name__ == '__main__':
         sendCommandAndWait(f"Q")
         # get status for first display
         sendCommandAndWait(f"GX")
+        # set slew speed to M
+        sendCommandAndWait(f"RC")
         # set speed
         sendCommandAndWait(f"GCMS3")
         # NOTE: re-check when the sensor was bent
         # find RA home offset (just to be safe)
-        sendCommandAndWait(f"XSHR-700")
+        sendCommandAndWait(f"XSHR-1200")
         # find RA home in 2 hours range
-        sendCommandAndWait(f"MHRR3")
-        while True:
-            res = status()
-            print(res)
-            if res == 'Tracking':
-                break
+        if True:
+            sendCommandAndWait(f"MHRR3")
+            while True:
+                res = status()
+                print(res)
+                if res == 'Tracking':
+                    break
+        # set slew speed to highest again
+        sendCommandAndWait(f"RS")
         # move to 90 deg
         sendCommandAndWait(f"MXd12900")
         while True:
@@ -194,6 +202,10 @@ if __name__ == '__main__':
         sendCommandAndWait(f"GX")
         print("# homing done")
     sendCommandAndWait(f"Q")
+    def pa():
+        pa.alignOnce()
+    def calibrate():
+        cal.calibrate()
     while True:
         print(">> Command: ", end="")
         string = input()
@@ -205,6 +217,10 @@ if __name__ == '__main__':
                 home()
             if command[0]  == '#prefs':
                 print_settings()
+            if command[0]  == '#cal':
+                calibrate()
+            if command[0]  == '#pa':
+                pa()
         else:
             result = c.sendCommandAndWait(f":{string}#")
             print(f">> Result: {result}")
