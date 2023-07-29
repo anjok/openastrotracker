@@ -40,6 +40,17 @@ class Calibrate:
             pos=self.sendCommandAndWait(None, "GX").split(",")[0]
             if pos == "Tracking":
                 return
+    def getCurrentPosition(self):
+        dec_str = self.sendCommandAndWait("Get DEC start", f"GD")[1:]
+        ra_str = self.sendCommandAndWait("Get RA start", f"GR")
+        return (ra_str, dec_str)
+        
+    def moveTo(self, ra, dec):
+        print(f"Moving to RA {ra} DEC {dec}")
+        self.sendCommandAndWait(f"Set DEC start to {dec}", f"Sd+{dec}")
+        self.sendCommandAndWait(f"Set RA start to {ra}", f"Sr{ra}")
+        self.sendCommandAndWait("Move", "MS")
+        self.waitUntilTrack()
         
     def calibrate(self):
         global ra_ratio
@@ -47,35 +58,29 @@ class Calibrate:
         self.sendCommandAndWait("Unpark", "hU")
         ra_curr_steps = float(self.sendCommandAndWait("Get RA steps", "XGR"))
         dec_curr_steps = float(self.sendCommandAndWait("Get DEC steps", "XGD"))
+        ra_end_steps = ra_curr_steps
+        dec_end_steps = dec_curr_steps
         print(f"Current steps: RA {ra_curr_steps} DEC {dec_curr_steps}")
-        dec_start_str = self.sendCommandAndWait("Get DEC start", f"GD")[1:]
-        ra_start_str = self.sendCommandAndWait("Get RA start", f"GR")
+        (ra_start_str, dec_start_str) = self.getCurrentPosition()
         print(f"Current RA {ra_start_str} DEC {dec_start_str}")
         dec_start_str = f"70:00:00"
         if True:
-            self.sendCommandAndWait(f"Set DEC start to {dec_start_str}", f"Sd+{dec_start_str}")
-            self.sendCommandAndWait(f"Set RA start to {{ra_start_str}}", f"Sr{ra_start_str}")
-            self.sendCommandAndWait("Move", "MS")
-            self.waitUntilTrack()
+            self.moveTo(ra_start_str, dec_start_str)
             print("\n>> Now plate solve and sync. Press return to continue.", end="")
             string = input()
         # this is the start position from the spreadsheet
-        dec_start_str = self.sendCommandAndWait("Get DEC start position", "GD")[1:]
-        ra_start_str = self.sendCommandAndWait("Get RA start position", "GR")
-        print(f"\nStart RA: {ra_start_str}, DEC: +{dec_start_str}")
-        
-        if True:
-            print("Calibrating DEC")
+        if False:
             # now moving DEC
+            (ra_start_str, dec_start_str) = self.getCurrentPosition()
+            print(f"\nStarting DEC Calibration RA: {ra_start_str}, DEC: +{dec_start_str}")
+        
             dec_offset = 45
             dec_start = dec_string_to_number(dec_start_str)
             dec_deg, deg_rest = dec_start_str.split("*")
             (dec_min, dec_sec) = deg_rest.split("'")
             dec_next_str = f"{int(dec_deg)-dec_offset:02d}:{dec_min}:{dec_sec}"
-            self.sendCommandAndWait(f"Set DEC start to {dec_next_str}", f"Sd+{dec_next_str}")
-            self.sendCommandAndWait(f"Set RA start to {ra_start_str}", f"Sr{ra_start_str}")
-            self.sendCommandAndWait("Move", "MS")
-            self.waitUntilTrack()
+            self.moveTo(ra_start_str, dec_next_str)
+            
             print("\n>> Now plate solve and sync. Press return to continue.", end="")
             string = input()
             if string != "":
@@ -90,18 +95,16 @@ class Calibrate:
         
         if True:
             # now moving RA
-            print("Calibrating RA")
+            (ra_start_str, dec_start_str) = self.getCurrentPosition()
+            print(f"\nStarting RA Calibration RA: {ra_start_str}, DEC: +{dec_start_str}")
             ra_offset = 3
-            ra_start_str = self.sendCommandAndWait("Get RA start", f"GR")
+            (ra_start_str, dec_curr) = self.getCurrentPosition()
             ra_start = ra_string_to_number(ra_start_str)
             ra_deg, ra_rest = ra_start_str.split(":", 1)
             ra_next_hour = int(ra_deg)+ra_offset
             ra_next_str = f"{ra_next_hour:02d}:{ra_rest}"
-            dec_curr = self.sendCommandAndWait("Get DEC start", f"GD")[1:]
-            self.sendCommandAndWait(f"Set DEC start to {dec_curr}", f"Sd+{dec_curr}")
-            self.sendCommandAndWait(f"Set RA start to {ra_next_str}", f"Sr{ra_next_str}")
-            self.sendCommandAndWait("Move", "MS")
-            self.waitUntilTrack()
+            self.moveTo(ra_next_str, dec_curr)
+            
             print("\n>> Now plate solve and sync. Press return to continue.", end="")
             string = input()
             if string != "":
@@ -115,6 +118,7 @@ class Calibrate:
             ra_diff = ra_string_to_number(f"{ra_offset}:00:00") / (ra_end-ra_start)
             ra_end_steps = round(ra_curr_steps * ra_diff, 1)
             print(f">> Corrected RA steps from {ra_curr_steps} to {ra_end_steps}")
+        print(f"\nXSR{ra_end_steps}\nXSD{dec_end_steps}")
 
 if __name__ == "__main__":
     class DummyClient:

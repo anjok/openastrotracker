@@ -36,6 +36,9 @@ class OpenAstroClient(PyIndi.BaseClient):
     @debug.setter
     def debug(self, val):
         self._debug = val
+    def log(self,msg,end="\n"):
+        if self.debug:
+            print(msg,end=end)
     def sendCommand(self,cmd):
         self.meadeResultRead = False
         self.meadeProp[0].text = cmd
@@ -53,9 +56,6 @@ class OpenAstroClient(PyIndi.BaseClient):
             time.sleep(1)
         self.log(f"<< Received: {self.meadeResult.s} {self.meadeResult.tp.text}")
         return self.meadeResult.s,self.meadeResult.tp.text
-    def log(self,msg,end="\n"):
-        if self.debug:
-            print(msg,end=end)
     def newDevice(self, d):
         pass
     def newProperty(self, p):
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         sendCommandAndWait(f"GCMS3")
         # NOTE: re-check when the sensor was bent
         # find RA home offset (just to be safe)
-        sendCommandAndWait(f"XSHR-1200")
+        sendCommandAndWait(f"XSHR-1690")
         # find RA home in 2 hours range
         if True:
             sendCommandAndWait(f"MHRR3")
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         # set slew speed to highest again
         sendCommandAndWait(f"RS")
         # move to 90 deg
-        sendCommandAndWait(f"MXd12900")
+        sendCommandAndWait(f"MXd16900")
         while True:
             res = status()
             print(res)
