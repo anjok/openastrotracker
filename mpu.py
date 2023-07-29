@@ -29,7 +29,7 @@ class Sensor:
     @property 
     def averaged_acceleration(self):
         sumX,sumY,sumZ = (0,0,0)
-        cnt = 10
+        cnt = 100
         for i in range(0,cnt):
             accX,accY,accZ = self.raw_acceleration
             sumX,sumY,sumZ = (sumX+accX,sumY+accY,sumZ+accZ)
@@ -65,8 +65,11 @@ if __name__ == "__main__":
     offsets = [-38.4, -23.2, 23.5, 19.0]
     offsets = [-37.8, -24.2, 23.0, 19.0]
     offsets = [-38.2, -24.2, 23.0, 19.0]
-    #offsets = [0, 0, 0, 0.0]
-    targets = [-1.9, 47.1]
+    offsets = [0, 0, 0, 0.0]
+    # offsets = [-37.6, -24.2, 22.9, 19.0]
+    offsets = [-38.05, -25.37, 25.02, 19.0]
+    # targets = [-1.9, 47.1]
+    targets = [0,0]
     # back
     # Pos(X: -2.65 Y:45.72) Targets:(X-0.75 Y-1.38) Accel(X:72.43  Y:-4.68, Z:70.29) Temp(16.02) C
     sensor = Sensor(offsets=offsets)

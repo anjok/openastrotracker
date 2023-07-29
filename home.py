@@ -6,14 +6,18 @@ from openastroclient import OpenAstroClient
 #mpu9250
 offsets = [-37.8, -24.2, 23.0, 19.0]
 offsets = [-38.2, -24.2, 23.0, 19.0]
+# new measure on table
+offsets = [-37.6, -24.2, 22.9, 19.0] 
 ##mpu6050
 #offsets = [-7.1, -22.5, 2.0, 2.0]
 
 # table
-targets = [-1.9, 47.1]
+targets = [0, 0]
 # front
-targets = [ -2.65, 45.72]
+#targets = [ -2.65, 45.72]
 # back
+#targets = [ -2.65, 45.72]
+
 
 epsilon = 0.5
 
@@ -79,6 +83,14 @@ ra = Axis(targets[0], 314.2, "r")
 dec = Axis(targets[1], 314.2, "d")
 
 if __name__ == '__main__':
+    if 1 == 1:
+        startx, starty = 0,0
+        while not False:
+            x,y = sensor.angles
+            # y = y + 45
+            print(f"\rX: {x:5.2f} Y: {y:5.2f} dX:{startx-x:5.2f} dY:{starty-y:5.2f}", end="")
+            time.sleep(1)
+    sys.exit(0)
     client = OpenAstroClient(hostname="localhost")
     client.debug = True
     x,y = sensor.angles
