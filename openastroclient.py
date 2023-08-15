@@ -130,9 +130,10 @@ class Settings:
         if(self.dec_lower):
             return
         res = sendCommandAndWait(f"XGDLL")[1]
-        res = res.split("|")
-        self.dec_lower = int(res[0])
-        self.dec_upper = int(res[1])
+        # res = res.split("|")
+        self.dec_lower = float(res)
+        res = sendCommandAndWait(f"XGDLU")[1]
+        self.dec_upper = float(res)
         self.ra_steps = float(sendCommandAndWait(f"XGR")[1])
         self.dec_steps = float(sendCommandAndWait(f"XGD")[1])
         self.dec_park = int(sendCommandAndWait(f"XGDP")[1])
@@ -184,7 +185,7 @@ if __name__ == '__main__':
             while True:
                 res = status()
                 print(res)
-                if res == 'Tracking':
+                if res == 'Tracking' or res == 'Parked':
                     break
         # set slew speed to highest again
         sendCommandAndWait(f"RS")
@@ -193,7 +194,7 @@ if __name__ == '__main__':
         while True:
             res = status()
             print(res)
-            if res == 'Tracking':
+            if res == 'Tracking' or res == 'Parked':
                 break
         # set home pos
         sendCommandAndWait(f"SHP")
