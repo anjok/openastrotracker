@@ -21,7 +21,7 @@ class Calibrate:
     
     def __init__(self,client):
         self.client = client
-        self.verbose = False
+        self.verbose = True
     
     def getCurrentSteps(self):
         ra_curr_steps = float(self.sendCommandAndWait("Get RA steps", "XGR"))
@@ -97,7 +97,7 @@ class Calibrate:
             dec_end = dec_string_to_number(dec_end_str)
             dec_diff = dec_offset / (dec_start-dec_end)
             dec_end_steps = round(dec_curr_steps * dec_diff, 1)
-            print(f">> Corrected DEC steps from {dec_curr_steps} to {dec_end_steps}")
+            print(f">> Corrected DEC steps from {dec_curr_steps} to {dec_end_steps} diff: {dec_diff}={dec_start}-{dec_end}")
         
         if ra:
             # now moving RA
