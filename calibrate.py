@@ -1,16 +1,22 @@
 #!python3
 
-import time
+import time, os, sys
+from util import exec
+
 ra_ratio = 86164/86400
+ra_h = 360 / 24 * ra_ratio
 dummy = False
 
 def ra_string_to_number(str):
-    global ra_ratio
+    global ra_ratio, ra_h
     (hours,min,sec) = str.split(":")
-    ra_h = 360 / 24 * ra_ratio
     ra_m = ra_h / 60
     ra_s = ra_m / 60
     return int(sec) * ra_s + int(min) * ra_m + int(hours) * ra_h
+
+def ra_string_to_simple_number(str):
+    (hours,min,sec) = str.split(":")
+    return int(sec) * 1/3600 + int(min) * 1/60 + (int(hours) + 24) % 24
 
 def dec_string_to_number(str):
     (deg,rest) = str.split("*")
@@ -47,9 +53,13 @@ class Calibrate:
         
     def moveTo(self, ra, dec):
         print(f"Moving to RA {ra} DEC {dec}")
-        self.sendCommandAndWait(f"Set DEC start to {dec}", f"Sd+{dec}")
-        self.sendCommandAndWait(f"Set RA start to {ra}", f"Sr{ra}")
-        self.sendCommandAndWait("Move", "MS")
+        if True:
+            exec(f"indi_setprop -h {self.client.hostname} 'LX200 OpenAstroTech.ON_COORD_SET.SLEW=On'")
+            exec(f"indi_setprop -h {self.client.hostname} 'LX200 OpenAstroTech.EQUATORIAL_EOD_COORD.DEC={dec_string_to_number(dec)};RA={ra_string_to_simple_number(ra)}'")
+        else:
+            self.sendCommandAndWait(f"Set DEC start to {dec}", f"Sd+{dec}")
+            self.sendCommandAndWait(f"Set RA start to {ra}", f"Sr{ra}")
+            self.sendCommandAndWait("Move", "MS")
         self.waitUntilTrack()
 
     def promptForSolve(self):
@@ -71,12 +81,13 @@ class Calibrate:
 
         (ra_start_str, dec_start_str) = self.getCurrentPosition()
         print(f"Current RA {ra_start_str} DEC {dec_start_str}")
-        dec_start_str = f"75*00'00"
-        self.moveTo(ra_start_str, dec_start_str)
-        string = self.promptForSolve()
 
         # this is the start position from the spreadsheet
         if dec:
+            dec_start_str = f"75*00'00"
+            self.moveTo(ra_start_str, dec_start_str)
+            string = self.promptForSolve()
+
             # now moving DEC
             (ra_start_str, dec_start_str) = self.getCurrentPosition()
             print(f"\nStarting DEC Calibration (RA: {ra_start_str}, DEC: +{dec_start_str})")
@@ -100,12 +111,17 @@ class Calibrate:
             print(f">> Corrected DEC steps from {dec_curr_steps} to {dec_end_steps} diff: {dec_diff}={dec_start}-{dec_end}")
         
         if ra:
+            if not dec:
+                dec_start_str = f"35*00'00"
+                self.moveTo(ra_start_str, dec_start_str)
+                string = self.promptForSolve()
+
             # now moving RA
             (ra_start_str, dec_start_str) = self.getCurrentPosition()
             print(f"\nStarting RA Calibration (RA: {ra_start_str}, DEC: +{dec_start_str})")
             ra_offset = -3
             (ra_start_str, dec_curr) = self.getCurrentPosition()
-            ra_start = ra_string_to_number(ra_start_str)
+            ra_start = ra_string_to_simple_number(ra_start_str)
             ra_deg, ra_rest = ra_start_str.split(":", 1)
             ra_next_hour = int(ra_deg)+ra_offset
             if ra_next_hour < 0:
@@ -119,13 +135,13 @@ class Calibrate:
             else:
                 (ra_end_str, _) = self.getCurrentPosition()
             print(f"\nCurrent RA {ra_end_str} vs expected {ra_next_str}")
-            ra_end = ra_string_to_number(ra_end_str)
+            ra_end = ra_string_to_simple_number(ra_end_str)
             ra_actual_diff = ra_end-ra_start
             # print(f"{ra_start} {ra_end}=>{ra_actual_diff/15}")
             if abs(ra_actual_diff) > abs(ra_offset*15) * 4:
-                ra_actual_diff = abs(ra_end-ra_start-360*ra_ratio)
+                ra_actual_diff = abs(ra_end-ra_start)
                 # print(f"fixed {ra_start} {ra_end}=>{ra_actual_diff}")
-            ra_diff = ra_string_to_number(f"{abs(ra_offset)}:00:00") / (abs(ra_actual_diff))
+            ra_diff = ra_string_to_simple_number(f"{abs(ra_offset)}:00:00") / (abs(ra_actual_diff))
             ra_end_steps = round(ra_curr_steps * ra_diff, 1)
             print(f">> Corrected RA steps from {ra_curr_steps} to {ra_end_steps}")
         print(f"\nXSR{ra_end_steps}\nXSD{dec_end_steps}")

@@ -6,18 +6,25 @@ import autopa
 import calibrate
 
 from os.path import split
+from util import exec
 
 cmdName = "Meade"
+telescopeName = "LX200 OpenAstroTech"
+dec_offset = 15964
+ra_offset = -2692
+hostname = "astroberry.local"
+port = 7624
+user = "astroberry"
 
 class OpenAstroClient(PyIndi.BaseClient):
-    def __init__(self, hostname="astroberry.local", port=7624):
+    def __init__(self, hostname=hostname, port=port):
         super(OpenAstroClient, self).__init__()
         self.setServer(hostname,int(port))
         self.blobEvent=threading.Event()
         self.debug = False
+        self._hostname = hostname
         if (not(self.connectServer())):
             raise Exception(f"No indiserver running on {hostname}:{port} - Run server in Ekos first.")
-        telescopeName = "LX200 OpenAstroTech"
         self.telescope=self.getDevice(telescopeName)
         while not(self.telescope):
             time.sleep(0.5)
@@ -33,6 +40,9 @@ class OpenAstroClient(PyIndi.BaseClient):
     @property
     def debug(self):
         return self._debug
+    @property
+    def hostname(self):
+        return self._hostname
     @debug.setter
     def debug(self, val):
         self._debug = val
@@ -163,10 +173,24 @@ if __name__ == '__main__':
     def status():
         res = sendCommandAndWait(f"GX")[1].split(",")[0]
         return res
+    def pos():
+        res = sendCommandAndWait(f"GX")[1].split(",")[2:4]
+        return [int(res[0]),int(res[1])]
     def print_settings():
         print("# settings")
         s.read()
         s.print()
+    def shutdown():
+        print("# shutdown")
+        exec(f"ssh {user}@{c.hostname} 'sudo shutdown now'")
+    def reboot():
+        print("# reboot")
+        exec(f"ssh {user}@{c.hostname} 'sudo reboot'")
+    def rest():
+        (ra_pos,dec_pos) = pos()
+        print(f"current pos: {(ra_pos,dec_pos)}")
+        sendCommandAndWait(f"MXr{-ra_pos}")
+        sendCommandAndWait(f"MXd{-dec_pos - dec_offset}")
     def home():
         # stop motors
         sendCommandAndWait(f"Q")
@@ -178,7 +202,7 @@ if __name__ == '__main__':
         sendCommandAndWait(f"GCMS3")
         # NOTE: re-check when the sensor was bent
         # find RA home offset (just to be safe)
-        sendCommandAndWait(f"XSHR-1290")
+        sendCommandAndWait(f"XSHR{ra_offset}")
         # find RA home in 2 hours range
         if True:
             sendCommandAndWait(f"MHRR3")
@@ -190,7 +214,7 @@ if __name__ == '__main__':
         # set slew speed to highest again
         sendCommandAndWait(f"RS")
         # move to 90 deg
-        sendCommandAndWait(f"MXd17100")
+        sendCommandAndWait(f"MXd{dec_offset}")
         while True:
             res = status()
             print(res)
@@ -205,22 +229,34 @@ if __name__ == '__main__':
     sendCommandAndWait(f"Q")
     def pa():
         pa.alignOnce()
-    def calibrate():
-        cal.calibrate()
+    def calibrate(cmd):
+        if cmd != '#cal':
+            ra = cmd.endswith("ra")
+            dec = cmd.endswith("dec")
+            cal.calibrate(ra=ra, dec=dec)
+        else:
+            cal.calibrate()
     while True:
         print(">> Command: ", end="")
         string = input()
         if len(string) > 1 and string[0] == '#':
-            command = string.split()
-            if command[0]  == '#sleep' and len(command) > 1:
-                time.sleep(int(command[1]))
-            if command[0]  == '#home':
+            parts = string.split()
+            cmd,args = (parts[0], parts[1:])
+            if cmd == '#sleep':
+                time.sleep(int(args[0]))
+            if cmd == '#home':
                 home()
-            if command[0]  == '#prefs':
+            if cmd == '#rest':
+                rest()
+            if cmd == '#shutdown':
+                shutdown()
+            if cmd == '#reboot':
+                reboot()
+            if cmd == '#prefs':
                 print_settings()
-            if command[0]  == '#cal':
-                calibrate()
-            if command[0]  == '#pa':
+            if cmd.startswith('#cal'):
+                calibrate(cmd)
+            if cmd == '#pa':
                 pa()
         else:
             result = c.sendCommandAndWait(f":{string}#")
