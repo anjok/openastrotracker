@@ -13,15 +13,18 @@ telescopeName = "LX200 OpenAstroTech"
 dec_offset = 15964
 ra_offset = -2692
 hostname = "astroberry.local"
+ra_steps = "418.9"
+dec_steps = "418.9"
 port = 7624
-user = "astroberry"
+#user = "astroberry"
+ssh_cmd = "ssh astro"
 
 class OpenAstroClient(PyIndi.BaseClient):
     def __init__(self, hostname=hostname, port=port):
         super(OpenAstroClient, self).__init__()
         self.setServer(hostname,int(port))
         self.blobEvent=threading.Event()
-        self.debug = False
+        self.debug = True
         self._hostname = hostname
         if (not(self.connectServer())):
             raise Exception(f"No indiserver running on {hostname}:{port} - Run server in Ekos first.")
@@ -54,7 +57,7 @@ class OpenAstroClient(PyIndi.BaseClient):
         self.meadeProp[0].text = cmd
         self.log(f">> Sending: {cmd}")
         self.sendNewText(self.meadeProp)
-        time.sleep(1.0)
+        time.sleep(0.2)
         return ("ok", "ok")
     def sendCommandAndWait(self,cmd):
         self.meadeResultRead = False
@@ -63,7 +66,7 @@ class OpenAstroClient(PyIndi.BaseClient):
         self.sendNewText(self.meadeProp)
         while not(self.meadeResultRead):
             self.log(f"\r<<Waiting for result: {cmd}", end="")
-            time.sleep(1)
+            time.sleep(0.2)
         self.log(f"<< Received: {self.meadeResult.s} {self.meadeResult.tp.text}")
         return self.meadeResult.s,self.meadeResult.tp.text
     def newDevice(self, d):
@@ -164,8 +167,11 @@ Offsets:
 if __name__ == '__main__':
     c = OpenAstroClient()
     s = Settings()
-    pa = autopa.AutoPA(c)
     cal = calibrate.Calibrate(c)
+    def sendCommand(cmd):
+        res = c.sendCommand(f"{cmd}#")
+        print(f"# {cmd} -> {res}")
+        return res
     def sendCommandAndWait(cmd):
         res = c.sendCommandAndWait(f":{cmd}#")
         print(f"# {cmd} -> {res}")
@@ -182,52 +188,65 @@ if __name__ == '__main__':
         s.print()
     def shutdown():
         print("# shutdown")
-        exec(f"ssh {user}@{c.hostname} 'sudo shutdown now'")
+        exec(f"{ssh_cmd} 'sudo shutdown now'")
+    def xdf():
+        print("# firmware display")
+        sendCommandAndWait("XFR")
+        sendCommandAndWait(f"XGHR{ra_offset}")
+        sendCommandAndWait(f"XGD{dec_steps}")
+        sendCommandAndWait(f"XGR{ra_steps}")
+    def xfr():
+        print("# firmware reset")
+        sendCommandAndWait("XFR")
+        sendCommand(f"@XSHR{ra_offset}")
+        sendCommand(f"@XSD{dec_steps}")
+        sendCommand(f"@XSR{ra_steps}")
+        print(f"XGD{sendCommandAndWait('XGD')[1]}\nXGR{sendCommandAndWait('XGR')[1]}")
     def reboot():
         print("# reboot")
-        exec(f"ssh {user}@{c.hostname} 'sudo reboot'")
+        exec(f"{ssh_cmd} 'sudo reboot'")
+    def waitFor(states):
+        while True:
+            res = status()
+            print(res)
+            if res in states:# == 'Tracking' or res == 'Parked':
+                break
     def rest():
         (ra_pos,dec_pos) = pos()
         print(f"current pos: {(ra_pos,dec_pos)}")
         sendCommandAndWait(f"MXr{-ra_pos}")
-        sendCommandAndWait(f"MXd{-dec_pos - dec_offset}")
+        waitFor(['Tracking', 'Parked'])
+        sendCommandAndWait(f"MXd{- dec_pos - dec_offset}")
+        waitFor(['Tracking', 'Parked'])
     def home():
+        # re-set steps
+        sendCommand(f"@XSR{ra_steps}")
         # stop motors
         sendCommandAndWait(f"Q")
+        # xfr()
         # get status for first display
         sendCommandAndWait(f"GX")
         # set slew speed to M
         sendCommandAndWait(f"RC")
-        # set speed
-        sendCommandAndWait(f"GCMS3")
         # NOTE: re-check when the sensor was bent
         # find RA home offset (just to be safe)
-        sendCommandAndWait(f"XSHR{ra_offset}")
+        # sendCommandAndWait(f"XSHR{ra_offset}")
         # find RA home in 2 hours range
-        if True:
-            sendCommandAndWait(f"MHRR3")
-            while True:
-                res = status()
-                print(res)
-                if res == 'Tracking' or res == 'Parked':
-                    break
+        sendCommandAndWait(f"MHRR3")
+        waitFor(['Tracking', 'Parked'])
         # set slew speed to highest again
         sendCommandAndWait(f"RS")
         # move to 90 deg
         sendCommandAndWait(f"MXd{dec_offset}")
-        while True:
-            res = status()
-            print(res)
-            if res == 'Tracking' or res == 'Parked':
-                break
+        waitFor(['Tracking', 'Parked'])
         # set home pos
         sendCommandAndWait(f"SHP")
         # stop motors
         sendCommandAndWait(f"Q")
         sendCommandAndWait(f"GX")
         print("# homing done")
-    sendCommandAndWait(f"Q")
     def pa():
+        pa = autopa.AutoPA(c)
         pa.alignOnce()
     def calibrate(cmd):
         if cmd != '#cal':
@@ -239,7 +258,9 @@ if __name__ == '__main__':
     while True:
         print(">> Command: ", end="")
         string = input()
-        if len(string) > 1 and string[0] == '#':
+        if len(string) < 1:
+            continue
+        if string[0] == '#':
             parts = string.split()
             cmd,args = (parts[0], parts[1:])
             if cmd == '#sleep':
@@ -248,6 +269,8 @@ if __name__ == '__main__':
                 home()
             if cmd == '#rest':
                 rest()
+            if cmd == '#xfr':
+                xfr()
             if cmd == '#shutdown':
                 shutdown()
             if cmd == '#reboot':
@@ -258,7 +281,12 @@ if __name__ == '__main__':
                 calibrate(cmd)
             if cmd == '#pa':
                 pa()
-        else:
-            result = c.sendCommandAndWait(f":{string}#")
+        elif string[0] == '@':
+            print(f">>> Send: {string}#")
+            result = c.sendCommand(f"{string}#")
             print(f">> Result: {result}")
+        else:
+            result = sendCommandAndWait(string)
+            print(f">> Result: {result}")
+
 
