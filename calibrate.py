@@ -6,6 +6,8 @@ from util import exec
 ra_ratio = 86164/86400
 ra_h = 360 / 24 * ra_ratio
 dummy = False
+# negative means westward
+ra_offset = -3
 
 def ra_string_to_number(str):
     global ra_ratio, ra_h
@@ -119,13 +121,18 @@ class Calibrate:
             # now moving RA
             (ra_start_str, dec_start_str) = self.getCurrentPosition()
             print(f"\nStarting RA Calibration (RA: {ra_start_str}, DEC: +{dec_start_str})")
-            ra_offset = -3
             (ra_start_str, dec_curr) = self.getCurrentPosition()
             ra_start = ra_string_to_simple_number(ra_start_str)
             ra_deg, ra_rest = ra_start_str.split(":", 1)
             ra_next_hour = int(ra_deg)+ra_offset
-            if ra_next_hour < 0:
+            underflow = False
+            overflow = False
+            if ra_next_hour < 0 and ra_offset < 0:
+                underflow = True
                 ra_next_hour = ra_next_hour + 24
+            elif ra_next_hour > 24 and ra_offset > 0:
+                overflow = True
+                ra_next_hour = ra_next_hour - 24
             ra_next_str = f"{ra_next_hour:02d}:{ra_rest}"
             self.moveTo(ra_next_str, dec_curr)
             
@@ -136,7 +143,14 @@ class Calibrate:
                 (ra_end_str, _) = self.getCurrentPosition()
             print(f"\nCurrent RA {ra_end_str} vs expected {ra_next_str}")
             ra_end = ra_string_to_simple_number(ra_end_str)
-            ra_actual_diff = ra_end-ra_start
+            if underflow:
+                ra_start = ra_start + 24
+                ra_actual_diff = ra_start-ra_end
+            elif overflow:
+                ra_start = ra_start - 24
+                ra_actual_diff = ra_start-ra_end
+            else:
+                ra_actual_diff = ra_end-ra_start
             # print(f"{ra_start} {ra_end}=>{ra_actual_diff/15}")
             if abs(ra_actual_diff) > abs(ra_offset*15) * 4:
                 ra_actual_diff = abs(ra_end-ra_start)
@@ -150,7 +164,7 @@ class DummyCalibrate(Calibrate):
     def __init__(self, client):
         super().__init__(client)
         self.pos = start
-        self.steps = (419,419)
+        self.steps = (418.1,419)
     def moveTo(self, ra, dec):
         print(f"Moving to RA {ra} DEC {dec}")
         self.pos = (ra, dec)
@@ -164,23 +178,24 @@ class DummyCalibrate(Calibrate):
         if len(values):
             return values.pop(0)
 
-
-            
-
 if __name__ == "__main__":
     dummy = True
     dec = True
     ra = True
     if dummy:
-        start = ("12:00:00", "90*00'00")
+        start_ra = 1
+        start = (f"{start_ra:0d}:30:00", "90*00'00")
+        start = (f"01:27:12", "90*00'00")
         values = [""]
         if dec:
             values.append("29*00'00")
         if ra:
-            values.append("8:59:00")
+            end_ra = (start_ra+ra_offset+24) % 24
+            #values.append(f"{end_ra:0d}:35:00")
+            values.append(f"22:28:46")
     class DummyClient:
         def sendCommandAndWait(self,cmd):
-            print(cmd)
+            print(f"command {cmd}")
             return (1,",------,")
 
     cal = DummyCalibrate(DummyClient())
