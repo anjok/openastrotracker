@@ -7,7 +7,7 @@ ra_ratio = 86164/86400
 ra_h = 360 / 24 * ra_ratio
 dummy = False
 # negative means westward
-ra_offset = -3
+ra_offset = 3
 
 def ra_string_to_number(str):
     global ra_ratio, ra_h
@@ -74,7 +74,7 @@ class Calibrate:
         
     def calibrate(self, dec=True, ra=True):
         global ra_ratio
-        self.sendCommandAndWait("Go Home", "hF")
+        # self.sendCommandAndWait("Go Home", "hF")
         # self.sendCommandAndWait("Unpark", "hU")
         (ra_curr_steps, dec_curr_steps) = self.getCurrentSteps()
         ra_end_steps = ra_curr_steps

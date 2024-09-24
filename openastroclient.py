@@ -12,12 +12,12 @@ cmdName = "Meade"
 telescopeName = "LX200 OpenAstroTech"
 dec_offset = 15964
 ra_offset = -2692
-hostname = "astroberry.local"
+hostname = "stellarmate.local"
 ra_steps = "421.8" # 417.9
-dec_steps = "423.5" # 418.9
+dec_steps = "421.8" # 418.9
 port = 7624
 #user = "astroberry"
-ssh_cmd = "ssh astro"
+ssh_cmd = "ssh mate"
 
 class OpenAstroClient(PyIndi.BaseClient):
     def __init__(self, hostname=hostname, port=port):
