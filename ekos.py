@@ -1,7 +1,6 @@
 import dbus
-import dbus.mainloop.glib
+# import dbus.mainloop.glib
 import xml.etree.ElementTree as ET
-from gi.repository import GLib
 from functools import wraps
 from inspect import signature, Parameter
 
@@ -30,6 +29,7 @@ class DBusProxy:
         self.clazz = clazz
         self.proxy = self.bus.get_object(service_name, object_path)
         self.interface_name = interface_name
+        self.interface = dbus.Interface(self.proxy, self.interface_name)
         introspectable = dbus.Interface(self.proxy, 'org.freedesktop.DBus.Introspectable')
         xml_data = introspectable.Introspect()
         print(xml_data)
@@ -65,8 +65,8 @@ class DBusProxy:
             new_sig = sig.replace(parameters=params)
             def create_method(m_name, method_sig):
                 @wraps(self.proxy)
-                def proxy_method(*args):
-                    dbus_method = dbus.Interface(self.proxy, self.interface_name).get_dbus_method(m_name)
+                def proxy_method(self, *args):
+                    dbus_method = self.interface.get_dbus_method(m_name)
                     result = dbus_method(*args)
                     return convert_dbus_value(result)
                 proxy_method.__signature__ = method_sig
@@ -101,6 +101,7 @@ class DBusProxy:
             signal_handler = create_signal_handler(signal_name)
             self.bus.add_signal_receiver(signal_handler, dbus_interface=self.interface_name, signal_name=signal_name)
 if False:
+    from gi.repository import GLib
     loop = GLib.MainLoop()
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)  # Set the GLib main loop
     loop.run()
@@ -129,9 +130,14 @@ class Guide(DBusProxy):
     def __init__(self):
         super().__init__(Guide, "org.kde.kstars", "/KStars/Ekos/Guide", "org.kde.kstars.Ekos.Guide")
 
+class Indi(DBusProxy):
+    def __init__(self):
+        super().__init__(Indi, "org.kde.kstars", "/KStars/INDI", "org.kde.kstars.INDI")
+
 ekos = Ekos()
-scheduler = Scheduler()
+indi = Indi()
 focus = Focus()
-capture = Capture()
+scheduler = Scheduler()
 align = Align()
 guide = Guide()
+capture = Capture()

@@ -3,11 +3,11 @@ import PyIndi
 
 device_name = "Canon DSLR EOS 6D"
 exposure_time = 1.0
-host_name = "astroberry.local"
+hostname = "stellarmate.local"
 filename = "captured_image.raw"  # Provide your desired filename and extension
 
 class CamClient(PyIndi.BaseClient):
-    def __init__(self, hostname="astroberry.local", port=7624):
+    def __init__(self, hostname=hostname, port=7624):
         super(CamClient, self).__init__()
         self.setServer(hostname,int(port))
         # self.blobEvent=threading.Event()
