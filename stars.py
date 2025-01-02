@@ -2,6 +2,17 @@ import pygame
 import random
 import time
 
+# This aimple script allows to test guiding during the day:
+# - in a dark room, run the script on a computer about 5-7m away from the OAT
+# - lift up the back of your OAT so the guider is slightly (1-2cm) above the RA ring when pointed to the computer
+# - Use a second computer to run phd2 and kstars
+# - connect, sync to about 65 degrees in DEC
+# - point the OAT at the left side of the screen, so some stars are visible. Stars should move to the left in the guider
+# - Enable tracking (Meade Command `:MT1#`) 
+# - adjust the stars_speed so the stars are stationary (quit, change and run this script again)
+# - calibrate, then guide
+# - after about 8-12m you need to move to the left side again, as your stars have moved out of the screen. Then guide again for another 4 mins
+
 # Configurable Parameters
 num_stars = 500        # Number of stars to display
 star_size = 1          # Size of the stars
