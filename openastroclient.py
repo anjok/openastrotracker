@@ -10,9 +10,11 @@ from util import exec
 
 cmdName = "Meade"
 telescopeName = "LX200 OpenAstroTech"
+# telescopeName = "ZWO CCD ASI183MC"
 dec_offset = 15964
 ra_offset = -2692
 hostname = "stellarmate.local"
+# hostname = "localhost"
 ra_steps = "421.8" # 417.9
 dec_steps = "421.8" # 418.9
 port = 7624
@@ -191,16 +193,15 @@ if __name__ == '__main__':
         exec(f"{ssh_cmd} 'sudo shutdown now'")
     def xdf():
         print("# firmware display")
-        sendCommandAndWait("XFR")
-        sendCommandAndWait(f"XGHR{ra_offset}")
-        sendCommandAndWait(f"XGD{dec_steps}")
-        sendCommandAndWait(f"XGR{ra_steps}")
+        sendCommandAndWait(f"XGHR")
+        sendCommandAndWait(f"XGD")
+        sendCommandAndWait(f"XGR")
     def xfr():
         print("# firmware reset")
         sendCommandAndWait("XFR")
-        sendCommand(f"@XSHR{ra_offset}")
-        sendCommand(f"@XSD{dec_steps}")
-        sendCommand(f"@XSR{ra_steps}")
+        sendCommand(f":XSHR{ra_offset}#")
+        sendCommand(f":XSD{dec_steps}#")
+        sendCommand(f":XSR{ra_steps}#")
         print(f"XGD{sendCommandAndWait('XGD')[1]}\nXGR{sendCommandAndWait('XGR')[1]}")
     def reboot():
         print("# reboot")
@@ -220,7 +221,8 @@ if __name__ == '__main__':
         waitFor(['Tracking', 'Parked'])
     def home():
         # re-set steps
-        sendCommand(f"@XSR{ra_steps}")
+        # disabled to see if this causes the speedup
+        # sendCommand(f"XSR{ra_steps}")
         # stop motors
         sendCommandAndWait(f"Q")
         # xfr()
@@ -264,6 +266,8 @@ if __name__ == '__main__':
             parts = string.split()
             cmd,args = (parts[0], parts[1:])
             if cmd == '#sleep':
+                time.sleep(int(args[0]))
+            if cmd == '#temp':
                 time.sleep(int(args[0]))
             if cmd == '#home':
                 home()
